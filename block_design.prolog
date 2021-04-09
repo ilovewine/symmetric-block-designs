@@ -1,8 +1,24 @@
 :- use_module(library(clpfd)).
 
+bibd(N,K,R2) :-
+	bibd(N,K,R2,BD), !,
+	setof(X,between(1,N,X),Set),
+	write_list(Set),
+	writeln_list(BD).
+bibd(_,_,_) :- writeln('Such 2-BIBD does not exist.').
+
+write_list([El|[]]) :- writeln(El).
+write_list([EL|List]) :- write(El), tab(1), write_list(List).
+
+writeln_list([]).
+writeln_list([El|List]) :- writeln(El), writeln_list(List).
+
 bibd(N,K,R2,BD) :-
-    subsets(N,K,SubsetFamily), !,
-    choose_subsets2(N,R2,SubsetFamily,BD), !.
+    R1 is R2*(N-1)/(K-1),
+    R1 =:= K,
+    subsets(N,K,SubsetFamily),
+    writeln(SubsetFamily),
+    choose_subsets(N,R2,SubsetFamily,BD), !.
 
 set_of_size(N,K,Subset) :-
     length(Block,K),
@@ -14,78 +30,33 @@ set_of_size(N,K,Subset) :-
 subsets(N,K,Family) :- setof(Subset,set_of_size(N,K,Subset),Family).
 
 choose_subsets(N,R2,SubsetFamily,BD) :-
-    length(BDIndexes,N),
-    length(SubsetFamily,SubsetLength),
-    BDIndexes ins 1..SubsetLength,
-    all_distinct(BDIndexes),
-    label(BDIndexes),
-    map_bd(BDIndexes,SubsetFamily,BD).
-    %number_of_occurences(N,BD,R2).
+	different_blocks(N,SubsetFamily,BD),
+	test_r2(BD,BD,R2).
 
-map_bd(BDIndexes,SubsetFamily,BD) :- map_bd(BDIndexes,SubsetFamily,[],BD).
+different_blocks(N,Family,BD) :-
+    length(Indexes,N),
+    length(Family,FamilyLength),
+    Indexes ins 1..FamilyLength,
+    all_distinct(Indexes),
+    map_bd(Indexes,Family,BD).
+
+map_bd(Indexes,Family,BD) :- map_bd(Indexes,Family,[],BD).
 map_bd([],_,BD,BD) :- !.
-map_bd([Index|BDIndexes],SubsetFamily,Temp,BD) :-
-    nth1(Index,SubsetFamily,Elem),
-    Temp1 = [Elem|Temp],
-    map_bd(BDIndexes,SubsetFamily,Temp1,BD).
-
-number_of_occurences(N,BD,R2) :-
-    produce_pair(N,Pair),
-    \+ pair_occurence(Pair,BD,R2), !,
-    fail.
-number_of_occurences(N,BD,R2) :-
-    produce_pair(N,Pair),
-    pair_occurence(Pair,BD,R2).
-
-produce_pair(N,Pair) :-
-    length(Pair,2),
-    Pair ins 1..N,
-    all_distinct(Pair),
-    label(Pair).
-
-pair_occurence(Pair,BD,R2) :- pair_occurence(Pair,BD,0,R2).
-pair_occurence(_Pair,[],R2,R2) :- !.
-pair_occurence(Pair,[Block|BD],Index,R2) :- subset(Pair,Block), !, Index1 is Index+1, pair_occurence(Pair,BD,Index1,R2).
-pair_occurence(Pair,[Block|BD],Index,R2) :- \+ subset(Pair,Block), !, pair_occurence(Pair,BD,Index,R2).
-
-choose_subsets2(N,R2,SubsetFamily,BD) :-
-	subsets(N,2,Pairs),
-	choose_subsets_from_pairs(Pairs,Pairs,SubsetFamily,R2,[],BD).
-
-choose_subsets_from_pairs(_Pairs,[],_Family,_R2,BD,BD) :- !.
-choose_subsets_from_pairs(PairFamily,[Pair|Pairs],Family,R2,Temp,BD) :-
-	count_existing_pair(Pair,Temp,K),
-	K = R2,
-	choose_subsets_from_pairs(PairFamily,Pairs,Family,R2,Temp,BD), !.
-choose_subsets_from_pairs(PairFamily,[Pair|_Pairs],Family,R2,Temp,BD) :-
-	count_existing_pair(Pair,Temp,K),
-	Remaining is R2-K,
-	Remaining > 0, !,
-	permutation(Family, PermFamily),
-	find_remaining_subsets(Pair,PermFamily,Temp,Remaining,Subsets),
-	union(Temp,Subsets,Temp1),
-	choose_subsets_from_pairs(PairFamily,PairFamily,Family,R2,Temp1,BD), !.
-choose_subsets_from_pairs(_PairFamily,_Pairs,_Family,_R2,_Temp,_BD) :- fail.
-
-count_existing_pair(Pair,Subsets,K) :- count_existing_pair(Pair,Subsets,0,K).
-count_existing_pair(_Pair,[],K,K) :- !.
-count_existing_pair(Pair,[Subset|Subsets],Index,K) :-
-	subset(Pair,Subset),
-	Index1 is Index+1,
-	count_existing_pair(Pair,Subsets,Index1,K), !.
-count_existing_pair(Pair,[_|Subsets],Index,K) :- count_existing_pair(Pair,Subsets,Index,K), !.
-
-find_remaining_subsets(Pair,SubsetFamily,Subsets,RemainingNumber,RemainingSubsets) :-
-	find_remaining_subsets(Pair,SubsetFamily,Subsets,RemainingNumber,[],RemainingSubsets).
-find_remaining_subsets(_Pair,_SubsetFamily,_Subsets,0,RemainingSubsets,RemainingSubsets) :- !.
-find_remaining_subsets(Pair,[Subset|SubsetFamily],Subsets,RemainingNumber,Temp,RemainingSubsets) :-
-	subset(Pair,Subset),
-	\+ member(Subset,Subsets),
-	Number is RemainingNumber-1,
+map_bd([Index|Indexes],Family,Temp,BD) :-
+	nth1(Index,Family,Subset),
 	Temp1 = [Subset|Temp],
-	find_remaining_subsets(Pair,SubsetFamily,Subsets,Number,Temp1,RemainingSubsets), !.
-find_remaining_subsets(Pair,[_,SubsetFamily],Subsets,RemainingNumber,Temp,RemainingSubsets) :-
-	find_remaining_subsets(Pair,SubsetFamily,Subsets,RemainingNumber,Temp,RemainingSubsets).
+	map_bd(Indexes,Family,Temp1,BD).
 
-% [[4,1,5],[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3]]
+test_r2([],_,_) :- !.
+test_r2([Block|Blocks],BD,R2) :-
+    subtract(BD,[Block],BD1),
+    check_intersection(Block,BD1,R2),
+    test_r2(Blocks,BD,R2).
+
+check_intersection(_,[],_) :- !.
+check_intersection(Block1,[Block2|BD],R2) :-
+    intersection(Block1,Block2,Intersection),
+    length(Intersection,R2),
+    check_intersection(Block1,BD,R2).
+
 % [[1,2,3],[3,4,5],[5,6,1],[2,4,6],[1,7,4],[3,7,6],[2,7,5]]

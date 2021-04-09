@@ -1,4 +1,4 @@
-:- module(bibd,[bibd/3]).
+:- module(symmetric_bibd,[bibd/3]).
 :- use_module(library(clpfd)).
 
 bibd(N,K,R2) :-

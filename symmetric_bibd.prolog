@@ -1,4 +1,4 @@
-:- module(symmetric_bibd,[bibd/3]).
+%:- module(symmetric_bibd,[bibd/3,bibd2/3]).
 :- use_module(library(clpfd)).
 
 bibd(N,K,R2) :-
@@ -21,11 +21,7 @@ choose_blocks(N,K,R2,Occurrences,[Pair|Pairs],Temp,BD) :-
 	get_occurrence(Pair,Occurrences,Occurrence),
 	Occurrence < R2,
 	Remainder is K - 2,
-	length(RemainingElements,Remainder),
-	LowerBoundary is P2+1,
-	RemainingElements ins LowerBoundary..N,
-	all_distinct(RemainingElements),
-	label(RemainingElements),
+	create_block(Pair,Remainder,Occurrences,R2,RemainingElements),
 	Block = [P1,P2|RemainingElements],
 	map_occurrences(Occurrences,R2,Block,Occurrences1),
 	Temp1 = [Block|Temp],
@@ -56,7 +52,7 @@ map_pairs_occurrences([Pair|Pairs],R2,Occurrences,Result) :-
 set_of_size(N,K,Subset) :-
     length(Block,K),
     Block ins 1..N,
-    all_distinct(Block),
+    chain(Block,#<),
     label(Block),
     sort(Block,Subset).
 
@@ -68,4 +64,20 @@ block_pair([P1,P2],Block) :-
     member(P2,Block),
     P1 < P2.
 
-% [[1,2,3],[3,4,5],[5,6,1],[2,4,6],[1,7,4],[3,7,6],[2,7,5]]
+create_block(Pair,Remainder,Occurrences,R2,RemainingElements) :- create_block(Pair,Remainder,Occurrences,R2,[],RemainingElements).
+create_block(_,0,_,_,RemainingElements,RemainingElements) :- !.
+create_block([P1,P2],Remainder,Occurrences,R2,Temp,RemainingElements) :-
+	nth1(_,Occurrences,occurrence([P1,P3],Occurrence)),
+	Occurrence < R2,
+	occurrence_pairwise(P3,[P1,P2|Temp],Occurrences,R2),
+	Temp1 = [P3|Temp],
+	Remainder1 is Remainder - 1,
+	create_block([P1,P2],Remainder1,Occurrences,R2,Temp1,RemainingElements).
+
+occurrence_pairwise(_,[],_,_) :- !.
+occurrence_pairwise(Element,[H|List],Occurrences,R2) :-
+	sort([Element,H],Sorted),
+	nth1(_,Occurrences,occurrence(Sorted,Occurrence)),
+	Occurrence < R2,
+	occurrence_pairwise(Element,List,Occurrences,R2).
+

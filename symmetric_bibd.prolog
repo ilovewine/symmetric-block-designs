@@ -1,4 +1,4 @@
-%:- module(symmetric_bibd,[symmetric_bibd/3,symmetric_bibd2/3]).
+:- module(symmetric_bibd,[symmetric_bibd/3]).
 :- use_module(library(clpfd)).
 :- use_module(set_subset).
 :- use_module(write_list).
@@ -18,21 +18,15 @@ check_necessary_conditions(N,K,R2) :-
 symmetric_bibd(N,K,R2,BD) :-
 	subsets(N,2,Pairs),
 	map_pairs(Pairs,Occurrences),
-	set_of_length(K,InitialBlock),
-	writeln(InitialBlock),
-	choose_blocks(N,K,R2,Occurrences,Pairs,[InitialBlock],BD).
+	choose_blocks(N,K,R2,Occurrences,Pairs,[],BD).
 choose_blocks(N,_,R2,Occurrences,_,BD,BD) :- length(BD,N), check_occurrences(Occurrences,R2), !.
 choose_blocks(N,K,R2,Occurrences,[Pair|Pairs],Temp,BD) :-
-	Pair = [P1,P2],
 	get_occurrence(Pair,Occurrences,Occurrence),
 	Occurrence < R2,
-	Remainder is K - 2, !,
-	create_block(Pair,Remainder,Occurrences,R2,RemainingElements),
-	Block = [P1,P2|RemainingElements],
-	\+ member(Block,Temp),
-	map_occurrences(Occurrences,R2,Block,Occurrences1),
+	Remainder is K - 2,
+	create_block(N,Pair,Remainder,Occurrences,R2,Temp,Block,NewOccurrences),
 	sort([Block|Temp],Temp1),
-	choose_blocks(N,K,R2,Occurrences1,[Pair|Pairs],Temp1,BD).
+	choose_blocks(N,K,R2,NewOccurrences,[Pair|Pairs],Temp1,BD).
 choose_blocks(N,K,R2,Occurrences,[Pair|Pairs],Temp,BD) :-
 	get_occurrence(Pair,Occurrences,Occurrence),
 	Occurrence = R2,
@@ -61,20 +55,48 @@ map_pairs_occurrences([Pair|Pairs],R2,Occurrences,Result) :-
 	select(occurrence(Pair,Occurrence),Occurrences,occurrence(Pair,Occurrence1),Occurrences1),
 	map_pairs_occurrences(Pairs,R2,Occurrences1,Result).
 
-create_block(Pair,Remainder,Occurrences,R2,RemainingElements) :- create_block(Pair,Remainder,Occurrences,R2,[],RemainingElements).
-create_block(_,0,_,_,RemainingElements,RemainingElements) :- !.
-create_block([P1,P2],Remainder,Occurrences,R2,Temp,RemainingElements) :-
-	nth1(_,Occurrences,occurrence([P1,P3],Occurrence)),
-	Occurrence < R2,
-	occurrence_pairwise(P3,[P1,P2|Temp],Occurrences,R2),
-	Temp1 = [P3|Temp],
-	Remainder1 is Remainder - 1,
-	create_block([P1,P2],Remainder1,Occurrences,R2,Temp1,RemainingElements).
+create_block(N,Pair,Remainder,Occurrences,R2,BD,Block,NewOccurrences) :-
+	create_block(N,Pair,Remainder,Occurrences,R2,BD,Pair,Block,NewOccurrences).
+create_block(_,_,0,Occurrences,R2,BD,Block,NewBlock,NewOccurrences) :-
+	\+ member(Block,BD),
+	sort(Block,NewBlock),
+    length(Block,K),
+    length(NewBlock,K),
+	intersection_test(Block,BD,R2),
+	map_occurrences(Occurrences,R2,Block,NewOccurrences).
+create_block(N,Pair,Remainder,Occurrences,R2,BD,Temp,Block,NewOccurrences) :-
+	find_element(R2,Occurrences,Temp,NewTemp),
+	intersection_test(NewTemp,BD,R2,midtest),
+	Remainder1 is Remainder-1,
+	create_block(N,Pair,Remainder1,Occurrences,R2,BD,NewTemp,Block,NewOccurrences).
 
-occurrence_pairwise(_,[],_,_) :- !.
-occurrence_pairwise(Element,[H|List],Occurrences,R2) :-
-	sort([Element,H],Sorted),
-	nth1(_,Occurrences,occurrence(Sorted,Occurrence)),
+find_element(R2,Occurrences,Block,NewBlock) :-
+	member(El,Block),
+	get_occurrence([El,El2],Occurrences,Occurrence),
+	\+ member(El2,Block),
 	Occurrence < R2,
-	occurrence_pairwise(Element,List,Occurrences,R2).
+	occurrence_test([El2|Block],Occurrences,R2),
+	NewBlock = [El2|Block].
 
+intersection_test(_,[],_).
+intersection_test(Block,[H|Blocks],R2) :-
+	intersection(Block,H,Intersection),
+	length(Intersection,R2),
+	intersection_test(Block,Blocks,R2).
+	
+intersection_test(_,[],_,midtest).
+intersection_test(Block,[H|Blocks],R2,midtest) :-
+	intersection(Block,H,Intersection),
+	length(Intersection,X),
+	X =< R2,
+	intersection_test(Block,Blocks,R2,midtest).
+
+occurrence_test(Block,Occurrences,R2) :-
+	block_pairs(Block,Pairs),
+	occurrence_pair_test(Pairs,Occurrences,R2).
+
+occurrence_pair_test([],_,_).
+occurrence_pair_test([Pair|Pairs],Occurrences,R2) :-
+	get_occurrence(Pair,Occurrences,Occurrence),
+	Occurrence < R2,
+	occurrence_pair_test(Pairs,Occurrences,R2).

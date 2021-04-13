@@ -1,6 +1,7 @@
 :- module(set_subset,[subset_of_size/3,subsets/3,block_pairs/2,set_of_length/2]).
+:- use_module(library(clpfd)).
 
-set_of_length(N,Set) :- setof(X,between(1,X,N),Set).
+set_of_length(N,Set) :- setof(X,between(1,N,X),Set).
 
 subset_of_size(N,K,Subset) :-
     length(Block,K),
